@@ -11,6 +11,10 @@ contract ICO {
     address public owner;
     bool public isRoundActive;
 
+    uint public roundSoftCap;
+    uint public roundHardCap;
+    uint public roundDuration
+
 
     constructor(uint endDate, uint softCap, uint hardCap, uint totalRounds) {
         startDate = now;
@@ -32,6 +36,9 @@ contract ICO {
     function startRound(uint softCap, uint hardCap, uint bonus , uint durationInDays) public payable {
         require (msg.sender == owner);
         require(currentRound <= totalRounds);
+        roundSoftCap = softCap;
+        roundHardCap = hardCap;
+        roundDuration = durationDays;
         isRoundActive = true;
         currentRound++;
 
