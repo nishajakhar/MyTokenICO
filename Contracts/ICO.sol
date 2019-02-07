@@ -1,60 +1,5 @@
 pragma solidity ^0.4.25
 
-contract ICO {
-    uint public startDate;
-    uint public endDate;
-    uint public softCap;
-    uint public hardCap;
-    bool public isSale;
-    uint public totalRounds;
-    uint public currentRound;
-    address public owner;
-    bool public isRoundActive;
-
-    uint public roundSoftCap;
-    uint public roundHardCap;
-    uint public roundDuration
-
-
-    constructor(uint endDate, uint softCap, uint hardCap, uint totalRounds) {
-        startDate = now;
-        endDate = endDate;
-        softCap = softCap;
-        hardCap = hardCap;
-        isSale = true;
-        totalRounds = totalRounds;
-        currentRound = 0;
-        owner = msg.sender;
-        isRoundActive = false;
-
-    }
-
-    function getCurrentRound() public returns (uint) {
-        return currentRound;
-    }
-
-    function startRound(uint softCap, uint hardCap, uint bonus , uint durationInDays) public payable {
-        require (msg.sender == owner);
-        require(currentRound <= totalRounds);
-        roundSoftCap = softCap;
-        roundHardCap = hardCap;
-        roundDuration = durationDays;
-        isRoundActive = true;
-        currentRound++;
-
-
-    }
-
-    function endRound() public {
-        isRoundActive = false;
-    }
-
-    function burnToken() public {
-
-    }
-
-
-}
 
 // ----------------------------------------------------------------------------
 // Deployed to : 
@@ -260,7 +205,14 @@ contract VegaToken is ERC20Interface, Owned, SafeMath {
     // ------------------------------------------------------------------------
     function () public payable {
         require(now >= startDate && now <= endDate);
-        uint tokens;
+        require(roundActive == true);
+        rounds[currentRound].roundEther +=  msg.value;
+        if(rounds[currentRound].roundEther > rounds[currentRound].hardCap){
+            endRound();
+            return;
+        }
+        else{
+            uint tokens;
         if (now <= bonusEnds) {
             tokens = msg.value * 1200;
         } else {
@@ -270,6 +222,8 @@ contract VegaToken is ERC20Interface, Owned, SafeMath {
         _totalSupply = safeAdd(_totalSupply, tokens);
         Transfer(address(0), msg.sender, tokens);
         owner.transfer(msg.value);
+        }
+        
     }
 
 
@@ -281,4 +235,76 @@ contract VegaToken is ERC20Interface, Owned, SafeMath {
         return ERC20Interface(tokenAddress).transfer(owner, tokens);
     }
 }
+
+
+contract ICO is VegaToken{
+    uint public startDate;
+    uint public endDate;
+    uint public softCap;
+    uint public hardCap;
+    bool public isSale;
+    uint public currentRound;
+    address public owner;
+    bool public isRoundActive;
+    uint public roundStartTime;
+
+    struct Statistic {
+        uint roundNumber;
+        uint roundEther;
+        uint roundTokenLimit;
+        uint roundTotalSupply;
+        uint roundBonus;
+        uint roundHardCap;
+        uint roundSoftCap;
+        uint roundDuration;
+        mapping(address => uint) roundBalances;
+    }
+
+    Statistic public rounds[]; 
+
+    constructor(uint endDate, uint softCap, uint hardCap,) {
+        startDate = now;
+        endDate = endDate;
+        softCap = softCap;
+        hardCap = hardCap;
+        isSale = true;
+        currentRound = 0;
+        owner = msg.sender;
+        isRoundActive = false;
+
+    }
+
+    function getCurrentRound() public returns (uint) {
+        return currentRound;
+    }
+
+    function startRound(uint softCap, uint hardCap, uint bonus) public payable {
+        require(now >= startDate && now <= endDate);
+        require(msg.sender == owner);
+        require(currentRound <= totalRounds);
+        roundStartTime = now;
+        roundSoftCap = softCap;
+        roundHardCap = hardCap;
+        roundDuration = endDate;
+        isRoundActive = true;
+        currentRound++;
+        rounds[currentRound].roundNumber = currentRound;
+        rounds[currentRound].softCap = softCap;
+        rounds[currentRound].hardCap = hardCap;
+    }
+
+    function endRound() public {
+        isRoundActive = false;
+        rounds[currentRound].roundDuration = roundStartTime - now;
+
+        if(roundEther < softCap){
+            
+        }
+    }
+
+    function burnToken() public {
+
+    }
+
+
 }
