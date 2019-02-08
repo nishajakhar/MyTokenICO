@@ -216,8 +216,7 @@ contract VegaToken is ERC20Interface, Owned, SafeMath {
 contract ICO is VegaToken(){
     uint public startDate;
     uint public endDate;
-    uint public softCap;
-    uint public hardCap;
+    uint public softCapICO;
     bool public isSale;
     uint public currentRound;
     address public myowner;
@@ -227,7 +226,6 @@ contract ICO is VegaToken(){
     struct Statistic {
         uint roundNumber;
         uint roundEther;
-        uint roundTokenLimit;
         uint roundTotalSupply;
         uint roundBonus;
         uint roundHardCap;
@@ -240,9 +238,8 @@ contract ICO is VegaToken(){
     //Statistic[] public rounds; 
     mapping(uint => Statistic) rounds;
 
-    constructor(uint softCap, uint hardCap) {
-        softCap = softCap;
-        hardCap = hardCap;
+    constructor(uint softCapArg) {
+        softCapICO = softCapArg;
         isSale = true;
         currentRound = 0;
         myowner = msg.sender;
@@ -266,11 +263,12 @@ contract ICO is VegaToken(){
         rounds[currentRound].roundNumber = currentRound;
         rounds[currentRound].roundSoftCap = rsoftCap;
         rounds[currentRound].roundHardCap = rhardCap;
+        rounds[currentRound].roundEther = 0;
     }
 
-    function returnStatistics(uint roundno) public constant returns (uint, uint, uint, uint, uint){
+    function returnStatistics(uint roundno) public constant returns (uint, uint, uint, uint, uint, uint, uint){
         
-       return (rounds[roundno].roundNumber, rounds[roundno].roundHardCap, rounds[roundno].roundSoftCap, rounds[roundno].roundStartTime, rounds[roundno].roundDuration);
+       return (rounds[roundno].roundNumber, rounds[roundno].roundHardCap, rounds[roundno].roundSoftCap, rounds[roundno].roundStartTime, rounds[roundno].roundDuration, rounds[roundno].roundEther, rounds[roundno].roundTotalSupply);
     }
     
     function endRound() public {
@@ -286,26 +284,19 @@ contract ICO is VegaToken(){
     function () public payable {
         require(now >= startDate && now <= endDate);
         require(isRoundActive == true);
-        rounds[currentRound].roundEther +=  msg.value;
-        if(rounds[currentRound].roundEther > rounds[currentRound].roundHardCap){
-            endRound();
-            return;
-        }
-        else{
-            uint tokens;
-        /*if (now <= bonusEnds) {
-            tokens = msg.value * 1200;
-        } else {
-            tokens = msg.value * 1000;
-        } */
         
+        rounds[currentRound].roundEther +=  msg.value;
+        uint tokens;
         tokens = msg.value * 1000;
+        rounds[currentRound].roundTotalSupply += tokens;
         balances[msg.sender] = safeAdd(balances[msg.sender], tokens);
         _totalSupply = safeAdd(_totalSupply, tokens);
         Transfer(address(0), msg.sender, tokens);
         owner.transfer(msg.value);
-        }
         
+        if(rounds[currentRound].roundEther >= rounds[currentRound].roundHardCap){
+            endRound();
+        }
     }
 
     function burnToken() public {
