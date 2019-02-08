@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25
+pragma solidity ^0.4.25;
 
 
 // ----------------------------------------------------------------------------
@@ -10,32 +10,31 @@ pragma solidity ^0.4.25
 // ----------------------------------------------------------------------------
 
 
+
 // ----------------------------------------------------------------------------
 // Safe maths
 // ----------------------------------------------------------------------------
 contract SafeMath {
-    function safeAdd(uint a, uint b) internal pure returns (uint c) {
+    function safeAdd(uint a, uint b) public pure returns (uint c) {
         c = a + b;
         require(c >= a);
     }
-    function safeSub(uint a, uint b) internal pure returns (uint c) {
+    function safeSub(uint a, uint b) public pure returns (uint c) {
         require(b <= a);
         c = a - b;
     }
-    function safeMul(uint a, uint b) internal pure returns (uint c) {
+    function safeMul(uint a, uint b) public pure returns (uint c) {
         c = a * b;
         require(a == 0 || c / a == b);
     }
-    function safeDiv(uint a, uint b) internal pure returns (uint c) {
+    function safeDiv(uint a, uint b) public pure returns (uint c) {
         require(b > 0);
         c = a / b;
     }
 }
 
-
 // ----------------------------------------------------------------------------
 // ERC Token Standard #20 Interface
-// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
 // ----------------------------------------------------------------------------
 contract ERC20Interface {
     function totalSupply() public constant returns (uint);
@@ -52,13 +51,11 @@ contract ERC20Interface {
 
 // ----------------------------------------------------------------------------
 // Contract function to receive approval and execute function in one call
-//
 // Borrowed from MiniMeToken
 // ----------------------------------------------------------------------------
 contract ApproveAndCallFallBack {
     function receiveApproval(address from, uint256 tokens, address token, bytes data) public;
 }
-
 
 // ----------------------------------------------------------------------------
 // Owned contract
@@ -107,12 +104,13 @@ contract VegaToken is ERC20Interface, Owned, SafeMath {
     // ------------------------------------------------------------------------
     // Constructor
     // ------------------------------------------------------------------------
-    function VegaToken() public {
+    constructor(){
+        
         symbol = "Vega";
         name = "Vega Token";
         decimals = 18;
-        bonusEnds = now + 1 weeks;
-        endDate = now + 7 weeks;
+        //bonusEnds = now + 1 weeks;
+        
 
     }
 
@@ -203,28 +201,7 @@ contract VegaToken is ERC20Interface, Owned, SafeMath {
     // ------------------------------------------------------------------------
     // 1,000 Santo Tokens per 1 ETH
     // ------------------------------------------------------------------------
-    function () public payable {
-        require(now >= startDate && now <= endDate);
-        require(roundActive == true);
-        rounds[currentRound].roundEther +=  msg.value;
-        if(rounds[currentRound].roundEther > rounds[currentRound].hardCap){
-            endRound();
-            return;
-        }
-        else{
-            uint tokens;
-        if (now <= bonusEnds) {
-            tokens = msg.value * 1200;
-        } else {
-            tokens = msg.value * 1000;
-        }
-        balances[msg.sender] = safeAdd(balances[msg.sender], tokens);
-        _totalSupply = safeAdd(_totalSupply, tokens);
-        Transfer(address(0), msg.sender, tokens);
-        owner.transfer(msg.value);
-        }
-        
-    }
+    
 
 
 
@@ -236,17 +213,16 @@ contract VegaToken is ERC20Interface, Owned, SafeMath {
     }
 }
 
-
-contract ICO is VegaToken{
+contract ICO is VegaToken(){
     uint public startDate;
     uint public endDate;
     uint public softCap;
     uint public hardCap;
     bool public isSale;
     uint public currentRound;
-    address public owner;
+    address public myowner;
     bool public isRoundActive;
-    uint public roundStartTime;
+    
 
     struct Statistic {
         uint roundNumber;
@@ -256,21 +232,23 @@ contract ICO is VegaToken{
         uint roundBonus;
         uint roundHardCap;
         uint roundSoftCap;
+        uint roundStartTime;
         uint roundDuration;
         mapping(address => uint) roundBalances;
     }
 
-    Statistic public rounds[]; 
+    //Statistic[] public rounds; 
+    mapping(uint => Statistic) rounds;
 
-    constructor(uint endDate, uint softCap, uint hardCap,) {
-        startDate = now;
-        endDate = endDate;
+    constructor(uint softCap, uint hardCap) {
         softCap = softCap;
         hardCap = hardCap;
         isSale = true;
         currentRound = 0;
-        owner = msg.sender;
+        myowner = msg.sender;
         isRoundActive = false;
+        startDate = now;
+        endDate = now + 7 weeks;
 
     }
 
@@ -278,28 +256,56 @@ contract ICO is VegaToken{
         return currentRound;
     }
 
-    function startRound(uint softCap, uint hardCap, uint bonus) public payable {
-        require(now >= startDate && now <= endDate);
-        require(msg.sender == owner);
-        require(currentRound <= totalRounds);
-        roundStartTime = now;
-        roundSoftCap = softCap;
-        roundHardCap = hardCap;
-        roundDuration = endDate;
-        isRoundActive = true;
+    function startRound(uint rsoftCap, uint rhardCap) public {
+      //  require(now >= startDate && now <= endDate);
+        require(msg.sender == myowner);
         currentRound++;
+        rounds[currentRound].roundStartTime = now;
+        isRoundActive = true;
+        
         rounds[currentRound].roundNumber = currentRound;
-        rounds[currentRound].softCap = softCap;
-        rounds[currentRound].hardCap = hardCap;
+        rounds[currentRound].roundSoftCap = rsoftCap;
+        rounds[currentRound].roundHardCap = rhardCap;
     }
 
+    function returnStatistics(uint roundno) public constant returns (uint, uint, uint, uint, uint){
+        
+       return (rounds[roundno].roundNumber, rounds[roundno].roundHardCap, rounds[roundno].roundSoftCap, rounds[roundno].roundStartTime, rounds[roundno].roundDuration);
+    }
+    
     function endRound() public {
         isRoundActive = false;
-        rounds[currentRound].roundDuration = roundStartTime - now;
+        rounds[currentRound].roundDuration = now - rounds[currentRound].roundStartTime;
 
-        if(roundEther < softCap){
+        if(rounds[currentRound].roundEther < rounds[currentRound].roundSoftCap){
             
         }
+       // rounds.push(Statistic());
+    }
+    
+    function () public payable {
+        require(now >= startDate && now <= endDate);
+        require(isRoundActive == true);
+        rounds[currentRound].roundEther +=  msg.value;
+        if(rounds[currentRound].roundEther > rounds[currentRound].roundHardCap){
+            endRound();
+            return;
+        }
+        else{
+            uint tokens;
+        /*if (now <= bonusEnds) {
+            tokens = msg.value * 1200;
+        } else {
+            tokens = msg.value * 1000;
+        } */
+        
+        tokens = msg.value * 1000;
+        balances[msg.sender] = safeAdd(balances[msg.sender], tokens);
+        _totalSupply = safeAdd(_totalSupply, tokens);
+        Transfer(address(0), msg.sender, tokens);
+        owner.transfer(msg.value);
+        }
+        
     }
 
     function burnToken() public {
@@ -308,3 +314,5 @@ contract ICO is VegaToken{
 
 
 }
+
+
