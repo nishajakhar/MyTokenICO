@@ -221,6 +221,20 @@ contract ICO is VegaToken(){
     uint public currentRound;
     address public myowner;
     bool public isRoundActive;
+    uint public totalEthers;
+    
+    uint public totalTokens;
+    uint public totalSupply;
+    
+    uint public totalAdvisorsTokens;
+    uint public totalAdvisorsSupply;
+    
+    uint public totalTeamTokens;
+    uint public totalTeamSupply;
+    
+    mapping (address => uint) tokenOwners;
+    mapping (address => uint) tokenAdvisorOwners;
+    mapping (address => uint) tokenTeamOwners;
     
 
     struct Statistic {
@@ -232,8 +246,8 @@ contract ICO is VegaToken(){
         uint roundSoftCap;
         uint roundStartTime;
         uint roundDuration;
-        mapping(address => uint) roundBalances;
     }
+    
 
     //Statistic[] public rounds; 
     mapping(uint => Statistic) rounds;
@@ -248,30 +262,42 @@ contract ICO is VegaToken(){
         endDate = now + 7 weeks;
 
     }
+    
+    
+    function endSale() public onlyOwner {
+        isSale == false;
+    }
 
+    function withdrawUserEther(){
+        require(isSale == false && totalEthers < softCapICO);
+        
+        Transfer(this, msg.sender, tokenOwners[msg.sender]);
+    }
+    
+    function withdrawOwnerEther() public onlyOwner{
+        Transfer(this, msg.sender, totalEthers);
+    }
     function getCurrentRound() public returns (uint) {
         return currentRound;
     }
 
-    function startRound(uint rsoftCap, uint rhardCap) public {
-      //  require(now >= startDate && now <= endDate);
-        require(msg.sender == myowner);
+    function startRound(uint rhardCap) public onlyOwner{
+        require(isSale == true);
         currentRound++;
         rounds[currentRound].roundStartTime = now;
         isRoundActive = true;
         
         rounds[currentRound].roundNumber = currentRound;
-        rounds[currentRound].roundSoftCap = rsoftCap;
         rounds[currentRound].roundHardCap = rhardCap;
         rounds[currentRound].roundEther = 0;
     }
 
-    function returnStatistics(uint roundno) public constant returns (uint, uint, uint, uint, uint, uint, uint){
+    function returnStatistics(uint roundno) public constant onlyOwner returns (uint, uint, uint, uint, uint, uint){
         
-       return (rounds[roundno].roundNumber, rounds[roundno].roundHardCap, rounds[roundno].roundSoftCap, rounds[roundno].roundStartTime, rounds[roundno].roundDuration, rounds[roundno].roundEther, rounds[roundno].roundTotalSupply);
+       return (rounds[roundno].roundNumber, rounds[roundno].roundHardCap, rounds[roundno].roundStartTime, rounds[roundno].roundDuration, rounds[roundno].roundEther, rounds[roundno].roundTotalSupply);
     }
     
-    function endRound() public {
+    function endRound() public onlyOwner {
         isRoundActive = false;
         rounds[currentRound].roundDuration = now - rounds[currentRound].roundStartTime;
 
@@ -282,21 +308,32 @@ contract ICO is VegaToken(){
     }
     
     function () public payable {
-        require(now >= startDate && now <= endDate);
-        require(isRoundActive == true);
+        if(now >= endDate){
+            isSale == false;
+        }
         
+        require(isSale == true && isRoundActive == true);
         rounds[currentRound].roundEther +=  msg.value;
+        totalEthers += msg.value;
+        
         uint tokens;
-        tokens = msg.value * 1000;
+        if(now <= rounds[currentRound].roundStartTime + 3 days){
+            tokens = msg.value * 1200;
+        }
+        else {
+         tokens = msg.value * 1000;   
+        }
+        
         rounds[currentRound].roundTotalSupply += tokens;
+        totalTokens += tokens;
         balances[msg.sender] = safeAdd(balances[msg.sender], tokens);
         _totalSupply = safeAdd(_totalSupply, tokens);
         Transfer(address(0), msg.sender, tokens);
-        owner.transfer(msg.value);
         
         if(rounds[currentRound].roundEther >= rounds[currentRound].roundHardCap){
             endRound();
         }
+        
     }
 
     function burnToken() public {
