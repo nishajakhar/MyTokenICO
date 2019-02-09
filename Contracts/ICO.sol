@@ -324,6 +324,7 @@ contract ICO is VegaToken(){
          tokens = msg.value * 1000;   
         }
         
+        tokenOwners[msg.sender] = msg.value;
         rounds[currentRound].roundTotalSupply += tokens;
         totalTokens += tokens;
         balances[msg.sender] = safeAdd(balances[msg.sender], tokens);
@@ -336,6 +337,13 @@ contract ICO is VegaToken(){
         
     }
 
+    function sendTokenToAdvisors(address advisorAddress, uint tokenAmount) public onlyOwner{
+        Transfer(this, advisorAddress, tokenAmount );
+    }
+    function sendTokenToTeam(address teamAddress, uint tokenAmount) public onlyOwner{
+        Transfer(this, teamAddress, tokenAmount );
+    }
+    
     function burnToken() public {
 
     }
