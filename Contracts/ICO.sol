@@ -256,7 +256,6 @@ contract ICO is VegaToken(){
         softCapICO = softCapArg;
         isSale = true;
         currentRound = 0;
-        myowner = msg.sender;
         isRoundActive = false;
         startDate = now;
         endDate = now + 7 weeks;
@@ -265,17 +264,19 @@ contract ICO is VegaToken(){
     
     
     function endSale() public onlyOwner {
-        isSale == false;
+        isSale = false;
     }
 
-    function withdrawUserEther(){
+    function withdrawUserEther() public {
         require(isSale == false && totalEthers < softCapICO);
-        
-        Transfer(this, msg.sender, tokenOwners[msg.sender]);
+        address user = msg.sender;
+        //Transfer(address(0), msg.sender, tokenOwners[msg.sender]);
+        user.transfer(tokenOwners[user]*1 ether);
     }
     
     function withdrawOwnerEther() public onlyOwner{
-        Transfer(this, msg.sender, totalEthers);
+       // Transfer(address(0), msg.sender, totalEthers);
+        msg.sender.transfer(totalEthers * 1 ether);
     }
     function getCurrentRound() public returns (uint) {
         return currentRound;
@@ -297,7 +298,7 @@ contract ICO is VegaToken(){
        return (rounds[roundno].roundNumber, rounds[roundno].roundHardCap, rounds[roundno].roundStartTime, rounds[roundno].roundDuration, rounds[roundno].roundEther, rounds[roundno].roundTotalSupply);
     }
     
-    function endRound() public onlyOwner {
+    function endRound() public {
         isRoundActive = false;
         rounds[currentRound].roundDuration = now - rounds[currentRound].roundStartTime;
 
@@ -307,24 +308,28 @@ contract ICO is VegaToken(){
        // rounds.push(Statistic());
     }
     
+    function showuserEther() public constant returns (uint) {
+        return tokenOwners[msg.sender];
+    }
+    
     function () public payable {
         if(now >= endDate){
-            isSale == false;
+            isSale = false;
         }
         
         require(isSale == true && isRoundActive == true);
-        rounds[currentRound].roundEther +=  msg.value;
-        totalEthers += msg.value;
+        rounds[currentRound].roundEther +=  (msg.value / 1 ether);
+        totalEthers += (msg.value / 1 ether);
         
         uint tokens;
         if(now <= rounds[currentRound].roundStartTime + 3 days){
-            tokens = msg.value * 1200;
+            tokens = (msg.value / 1 ether) * 1200;
         }
         else {
-         tokens = msg.value * 1000;   
+         tokens = (msg.value / 1 ether) * 1000;   
         }
         
-        tokenOwners[msg.sender] = msg.value;
+        tokenOwners[msg.sender] = (msg.value / 1 ether);
         rounds[currentRound].roundTotalSupply += tokens;
         totalTokens += tokens;
         balances[msg.sender] = safeAdd(balances[msg.sender], tokens);
