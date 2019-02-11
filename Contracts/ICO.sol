@@ -136,12 +136,7 @@ contract VegaToken is ERC20Interface, Owned, SafeMath {
     // - Owner's account must have sufficient balance to transfer
     // - 0 value transfers are allowed
     // ------------------------------------------------------------------------
-    function transfer(address to, uint tokens) public returns (bool success) {
-        balances[msg.sender] = safeSub(balances[msg.sender], tokens);
-        balances[to] = safeAdd(balances[to], tokens);
-        Transfer(msg.sender, to, tokens);
-        return true;
-    }
+   
 
 
     // ------------------------------------------------------------------------
@@ -155,6 +150,7 @@ contract VegaToken is ERC20Interface, Owned, SafeMath {
     function approve(address spender, uint tokens) public returns (bool success) {
         allowed[msg.sender][spender] = tokens;
         Approval(msg.sender, spender, tokens);
+        
         return true;
     }
 
@@ -168,6 +164,7 @@ contract VegaToken is ERC20Interface, Owned, SafeMath {
     // - Spender must have sufficient allowance to transfer
     // - 0 value transfers are allowed
     // ------------------------------------------------------------------------
+    
     function transferFrom(address from, address to, uint tokens) public returns (bool success) {
         balances[from] = safeSub(balances[from], tokens);
         allowed[from][msg.sender] = safeSub(allowed[from][msg.sender], tokens);
@@ -232,11 +229,14 @@ contract ICO is VegaToken(){
     uint public totalTeamTokens;
     uint public totalTeamSupply;
     
-    mapping (address => uint) tokenOwners;
-    mapping (address => uint) tokenAdvisorOwners;
-    mapping (address => uint) tokenTeamOwners;
-    
-
+    struct Details {
+        string userType;
+        uint tokenBalance;
+        uint etherBalance;
+        uint freezeTime;
+    }
+    mapping (address => Details) tokenOwners;
+   
     struct Statistic {
         uint roundNumber;
         uint roundEther;
@@ -252,30 +252,25 @@ contract ICO is VegaToken(){
     //Statistic[] public rounds; 
     mapping(uint => Statistic) rounds;
 
-    constructor(uint softCapArg) {
+    constructor(uint softCapArg, uint ICODurationInWeeks) {
         softCapICO = softCapArg;
         isSale = true;
         currentRound = 0;
         isRoundActive = false;
         startDate = now;
-        endDate = now + 7 weeks;
+        endDate = now + (ICODurationInWeeks * 1 weeks);
 
     }
     
-    
-    function endSale() public onlyOwner {
-        isSale = false;
-    }
 
     function withdrawUserEther() public {
         require(isSale == false && totalEthers < softCapICO);
         address user = msg.sender;
-        //Transfer(address(0), msg.sender, tokenOwners[msg.sender]);
-        user.transfer(tokenOwners[user]*1 ether);
+        user.transfer(tokenOwners[user].etherBalance *1 ether);
     }
     
     function withdrawOwnerEther() public onlyOwner{
-       // Transfer(address(0), msg.sender, totalEthers);
+       require(totalEthers >= softCapICO);
         msg.sender.transfer(totalEthers * 1 ether);
     }
     function getCurrentRound() public returns (uint) {
@@ -308,9 +303,6 @@ contract ICO is VegaToken(){
        // rounds.push(Statistic());
     }
     
-    function showuserEther() public constant returns (uint) {
-        return tokenOwners[msg.sender];
-    }
     
     function () public payable {
         if(now >= endDate){
@@ -318,40 +310,57 @@ contract ICO is VegaToken(){
         }
         
         require(isSale == true && isRoundActive == true);
-        rounds[currentRound].roundEther +=  (msg.value / 1 ether);
-        totalEthers += (msg.value / 1 ether);
+        uint convertToEther = msg.value / 1 ether;
         
         uint tokens;
         if(now <= rounds[currentRound].roundStartTime + 3 days){
-            tokens = (msg.value / 1 ether) * 1200;
+            tokens = convertToEther * 1200;
         }
         else {
-         tokens = (msg.value / 1 ether) * 1000;   
+         tokens = convertToEther * 1000;   
         }
         
-        tokenOwners[msg.sender] = (msg.value / 1 ether);
+        tokenOwners[msg.sender].userType = "User";
+        tokenOwners[msg.sender].etherBalance += convertToEther;
+        tokenOwners[msg.sender].tokenBalance += tokens;
+        tokenOwners[msg.sender].freezeTime = endDate + 30 days;
+        
         rounds[currentRound].roundTotalSupply += tokens;
+        rounds[currentRound].roundEther +=  convertToEther;
+        
         totalTokens += tokens;
+        totalEthers += convertToEther;
+        
         balances[msg.sender] = safeAdd(balances[msg.sender], tokens);
         _totalSupply = safeAdd(_totalSupply, tokens);
         Transfer(address(0), msg.sender, tokens);
+        
         
         if(rounds[currentRound].roundEther >= rounds[currentRound].roundHardCap){
             endRound();
         }
         
     }
-
-    function sendTokenToAdvisors(address advisorAddress, uint tokenAmount) public onlyOwner{
-        Transfer(this, advisorAddress, tokenAmount );
-    }
-    function sendTokenToTeam(address teamAddress, uint tokenAmount) public onlyOwner{
-        Transfer(this, teamAddress, tokenAmount );
+    
+     function transfer(address to, uint tokens, string typeofUser) public returns (bool success) {
+        balances[msg.sender] = safeSub(balances[msg.sender], tokens);
+        balances[to] = safeAdd(balances[to], tokens);
+        Transfer(msg.sender, to, tokens);
+        
+        tokenOwners[to].userType = typeofUser;
+        tokenOwners[to].etherBalance = 0;
+        tokenOwners[to].tokenBalance += tokens;
+        tokenOwners[to].freezeTime = now + 365 days;
+        return true;
     }
     
-    function burnToken() public {
-
+    function sendTokenToAdvisors(address advisorAddress, uint tokenAmount) public onlyOwner{
+        transfer(advisorAddress, tokenAmount, "Advisor" );
     }
+    function sendTokenToTeam(address teamAddress, uint tokenAmount) public onlyOwner{
+        transfer(teamAddress, tokenAmount, "Team" );
+    }
+    
 
 
 }
